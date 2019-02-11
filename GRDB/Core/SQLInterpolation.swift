@@ -1,35 +1,28 @@
 #if swift(>=5.0)
 /// :nodoc:
 public struct SQLInterpolation: StringInterpolationProtocol {
-    var sql: String
-    var arguments: StatementArguments {
-        get { return context.arguments! }
-        set { context.arguments = newValue }
-    }
-    var context = SQLGenerationContext.literalGenerationContext(withArguments: true)
+    var buildSteps: [(_ sql: inout String, _ context: inout SQLGenerationContext) -> ()] = []
 
     public init(literalCapacity: Int, interpolationCount: Int) {
-        sql = ""
-        sql.reserveCapacity(literalCapacity + interpolationCount)
+        // TODO: use capacity
     }
 
     /// "SELECT * FROM player"
     public mutating func appendLiteral(_ literal: String) {
-        sql += literal
+        buildSteps.append { (sql, context) in
+            sql += literal
+        }
     }
 
     /// "SELECT * FROM \(raw: "player")"
-    public mutating func appendInterpolation(sql literal: String, arguments: StatementArguments? = nil) {
-        sql += literal
-        if let arguments = arguments {
-            self.arguments += arguments
-        }
+    public mutating func appendInterpolation(sql: String, arguments: StatementArguments = StatementArguments()) {
+        appendInterpolation(SQLString(sql: sql, arguments: arguments))
     }
 
     /// "SELECT * FROM player WHERE \(condition)"
     public mutating func appendInterpolation(_ sqlString: SQLString) {
-        sql += sqlString.sql
-        arguments += sqlString.arguments
+        // TODO: extend capacity
+        buildSteps.append(contentsOf: sqlString.buildSteps)
     }
 }
 #endif

@@ -74,17 +74,11 @@ public struct SQLExpressionLiteral : SQLExpression {
     /// [**Experimental**](http://github.com/groue/GRDB.swift#what-are-experimental-features)
     /// :nodoc:
     public func expressionSQL(_ context: inout SQLGenerationContext) -> String {
-        if !sqlString.arguments.isEmpty {
-            if context.appendArguments(sqlString.arguments) == false {
-                // GRDB limitation: we don't know how to look for `?` in sql and
-                // replace them with with literals.
-                fatalError("Not implemented")
-            }
-        }
+        let sql = sqlString.sql(&context)
         if unsafeRaw {
-            return sqlString.sql
+            return sql
         } else {
-            return "(" + sqlString.sql + ")"
+            return "(" + sql + ")"
         }
     }
     

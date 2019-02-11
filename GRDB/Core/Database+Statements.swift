@@ -167,8 +167,9 @@ extension Database {
         //   all statements have been executed, in the same way
         //   as Statement.validate(arguments:)
         
-        let sql = sqlString.sql
-        var arguments = sqlString.arguments
+        var context = SQLGenerationContext.literalGenerationContext(withArguments: true)
+        let sql = sqlString.sql(&context)
+        var arguments = context.arguments!
         
         let initialValuesCount = arguments.values.count
         let consumeArguments = { (statement: UpdateStatement) throws -> StatementArguments in

@@ -1,15 +1,34 @@
 // TODO: documentation
 public struct SQLString {
-    private(set) public var sql: String
-    private(set) public var arguments: StatementArguments
+    var buildSteps: [(_ sql: inout String, _ context: inout SQLGenerationContext) -> ()] = []
     
+    fileprivate init(buildSteps: [(_ sql: inout String, _ context: inout SQLGenerationContext) -> ()]) {
+        self.buildSteps = buildSteps
+    }
+
     public init(sql: String, arguments: StatementArguments = StatementArguments()) {
-        self.sql = sql
-        self.arguments = arguments
+        self.init(buildSteps: [{ (sql, context) in
+            sql += sql
+            if !arguments.isEmpty {
+                if context.appendArguments(arguments) == false {
+                    // GRDB limitation: we don't know how to look for `?` in sql and
+                    // replace them with with literals.
+                    fatalError("Not implemented")
+                }
+            }
+        }])
     }
     
     public init(_ sqlString: SQLString) {
-        self = sqlString
+        self.init(buildSteps: sqlString.buildSteps)
+    }
+    
+    func sql(_ context: inout SQLGenerationContext) -> String {
+        var sql = "" // TODO: use capacity
+        for step in buildSteps {
+            step(&sql, &context)
+        }
+        return sql
     }
 }
 
@@ -21,19 +40,15 @@ extension SQLString {
     }
     
     public static func += (lhs: inout SQLString, rhs: SQLString) {
-        lhs.sql += rhs.sql
-        lhs.arguments += rhs.arguments
+        lhs.buildSteps.append(contentsOf: rhs.buildSteps)
     }
     
     public mutating func append(_ other: SQLString) {
         self += other
     }
 
-    public mutating func append(sql: String, arguments: StatementArguments? = nil) {
-        self.sql += sql
-        if let arguments = arguments {
-            self.arguments += arguments
-        }
+    public mutating func append(sql: String, arguments: StatementArguments = StatementArguments()) {
+        self += SQLString(sql: sql, arguments: arguments)
     }
 }
 
@@ -58,7 +73,7 @@ extension SQLString: ExpressibleByStringInterpolation {
     
     /// :nodoc:
     public init(stringInterpolation sqlInterpolation: SQLInterpolation) {
-        self.init(sql: sqlInterpolation.sql, arguments: sqlInterpolation.arguments)
+        self.init(buildSteps: sqlInterpolation.buildSteps)
     }
 }
 #endif
