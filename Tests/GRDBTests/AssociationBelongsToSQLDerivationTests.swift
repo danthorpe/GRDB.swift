@@ -180,6 +180,24 @@ class AssociationBelongsToSQLDerivationTests: GRDBTestCase {
         }
     }
     
+    #if swift(>=5.0)
+    func testFilterAssociationInWhereClauseWithInterpolation() throws {
+        let dbQueue = try makeDatabaseQueue()
+        try dbQueue.inDatabase { db in
+            let bAlias = TableAlias()
+            let request = A
+                .including(required: A.b.aliased(bAlias))
+                .filter(SQLString("\(bAlias[Column("name")]) IS NOT NULL"))
+            try assertEqualSQL(db, request, """
+                SELECT "a".*, "b".* \
+                FROM "a" \
+                JOIN "b" ON ("b"."id" = "a"."bid") \
+                WHERE ("b"."name" IS NOT NULL)
+                """)
+        }
+    }
+    #endif
+    
     func testAssociationOrderBubbleUp() throws {
         let dbQueue = try makeDatabaseQueue()
         try dbQueue.inDatabase { db in
